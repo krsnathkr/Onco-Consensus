@@ -36,5 +36,12 @@ class ConsensusReport(BaseModel):
     final_diagnosis: Literal["Malignant", "Benign"]
     confidence_score: float
     rationale: str
-    dissent_notes: str | None
+    dissent_notes: str | None = None
     correct: bool
+
+    @field_validator("confidence_score")
+    @classmethod
+    def confidence_score_in_range(cls, v: float) -> float:
+        if not 0.0 <= v <= 1.0:
+            raise ValueError(f"confidence_score must be 0.0–1.0, got {v}")
+        return v
