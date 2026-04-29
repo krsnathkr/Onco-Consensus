@@ -103,7 +103,7 @@ class GeminiAgent(DiagnosticAgent):
 
     def __init__(self, client=None):
         self.client = client or _openrouter_client()
-        self.model_id = os.environ.get("GEMINI_MODEL", "google/gemini-flash-1.5")
+        self.model_id = os.environ.get("GEMINI_MODEL", "google/gemini-2.0-flash-001")
 
     def analyze(
         self, case: PathologyCase, prior_opinions: list[DiagnosisOutput] | None
@@ -118,7 +118,7 @@ class GroqAgent(DiagnosticAgent):
 
     def __init__(self, client=None):
         self.client = client or _openrouter_client()
-        self.model_id = os.environ.get("GROQ_MODEL", "mistralai/mistral-7b-instruct")
+        self.model_id = os.environ.get("GROQ_MODEL", "mistralai/mistral-7b-instruct:free")
 
     def analyze(
         self, case: PathologyCase, prior_opinions: list[DiagnosisOutput] | None

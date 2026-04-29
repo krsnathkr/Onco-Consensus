@@ -39,7 +39,7 @@ class DebateOrchestrator:
 class MetaSynthesizer:
     def __init__(self, client=None):
         self.client = client or _openrouter_client()
-        self.model_id = os.environ.get("GEMINI_MODEL", "google/gemini-flash-1.5")
+        self.model_id = os.environ.get("GEMINI_MODEL", "google/gemini-2.0-flash-001")
 
     def synthesize(self, transcript: DebateTranscript) -> ConsensusReport:
         debate_text = f"Case ID: {transcript.case_id}\n\n"
