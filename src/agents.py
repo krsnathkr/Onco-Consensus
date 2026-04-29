@@ -118,7 +118,7 @@ class GroqAgent(DiagnosticAgent):
 
     def __init__(self, client=None):
         self.client = client or _openrouter_client()
-        self.model_id = os.environ.get("GROQ_MODEL", "mistralai/mistral-7b-instruct:free")
+        self.model_id = os.environ.get("GROQ_MODEL", "meta-llama/llama-3.1-8b-instruct:free")
 
     def analyze(
         self, case: PathologyCase, prior_opinions: list[DiagnosisOutput] | None
