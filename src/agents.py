@@ -106,7 +106,7 @@ class GroqAgent(DiagnosticAgent):
                 kwargs["base_url"] = base_url
             client = Groq(api_key=os.environ["GROQ_API_KEY"], **kwargs)
         self.client = client
-        self.model_id = "llama3-70b-8192"
+        self.model_id = os.environ.get("GROQ_MODEL", "llama3-70b-8192")
 
     def analyze(
         self, case: PathologyCase, prior_opinions: list[DiagnosisOutput] | None
@@ -127,7 +127,7 @@ class GroqAgent(DiagnosticAgent):
 class OllamaAgent(DiagnosticAgent):
     name = "OllamaAgent"
 
-    def __init__(self, base_url: str = "http://localhost:11434", model_id: str = "llama3"):
+    def __init__(self, base_url: str = "http://localhost:11434", model_id: str = "llama3:8b"):
         self.base_url = base_url
         self.model_id = model_id
 
