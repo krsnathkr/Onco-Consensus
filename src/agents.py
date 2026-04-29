@@ -17,6 +17,8 @@ JSON_SCHEMA_HINT = (
     '"key_findings": ["finding1", "finding2"], "reasoning": "your explanation"}'
 )
 
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+
 
 def _build_user_prompt(case: PathologyCase, others: list[DiagnosisOutput]) -> str:
     prompt = f"Biopsy Report:\n{case.narrative}"
@@ -76,51 +78,53 @@ def _split_prior(name: str, prior_opinions: list[DiagnosisOutput] | None):
     return others, self_prior, round_num
 
 
+def _openrouter_client():
+    from openai import OpenAI
+    return OpenAI(
+        api_key=os.environ["OPENROUTER_API_KEY"],
+        base_url=OPENROUTER_BASE_URL,
+    )
+
+
+def _chat(client, model_id: str, system: str, user: str, temperature: float = 0.3) -> str:
+    response = client.chat.completions.create(
+        model=model_id,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        temperature=temperature,
+    )
+    return response.choices[0].message.content
+
+
 class GeminiAgent(DiagnosticAgent):
     name = "GeminiAgent"
 
-    def __init__(self, model=None):
-        if model is None:
-            import google.generativeai as genai
-            genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-            model = genai.GenerativeModel("gemini-2.0-flash")
-        self.model = model
+    def __init__(self, client=None):
+        self.client = client or _openrouter_client()
+        self.model_id = os.environ.get("GEMINI_MODEL", "google/gemini-flash-1.5")
 
     def analyze(
         self, case: PathologyCase, prior_opinions: list[DiagnosisOutput] | None
     ) -> DiagnosisOutput:
         others, self_prior, round_num = _split_prior(self.name, prior_opinions)
-        full_prompt = f"{SYSTEM_PROMPT}\n\n{_build_user_prompt(case, others)}"
-        response = self.model.generate_content(full_prompt)
-        return _make_output(self.name, _parse_json(response.text), round_num, self_prior)
+        raw = _chat(self.client, self.model_id, SYSTEM_PROMPT, _build_user_prompt(case, others))
+        return _make_output(self.name, _parse_json(raw), round_num, self_prior)
 
 
 class GroqAgent(DiagnosticAgent):
     name = "GroqAgent"
 
     def __init__(self, client=None):
-        if client is None:
-            from groq import Groq
-            kwargs = {}
-            if base_url := os.environ.get("GROQ_BASE_URL"):
-                kwargs["base_url"] = base_url
-            client = Groq(api_key=os.environ["GROQ_API_KEY"], **kwargs)
-        self.client = client
-        self.model_id = os.environ.get("GROQ_MODEL", "llama3-70b-8192")
+        self.client = client or _openrouter_client()
+        self.model_id = os.environ.get("GROQ_MODEL", "mistralai/mistral-7b-instruct")
 
     def analyze(
         self, case: PathologyCase, prior_opinions: list[DiagnosisOutput] | None
     ) -> DiagnosisOutput:
         others, self_prior, round_num = _split_prior(self.name, prior_opinions)
-        response = self.client.chat.completions.create(
-            model=self.model_id,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": _build_user_prompt(case, others)},
-            ],
-            temperature=0.3,
-        )
-        raw = response.choices[0].message.content
+        raw = _chat(self.client, self.model_id, SYSTEM_PROMPT, _build_user_prompt(case, others))
         return _make_output(self.name, _parse_json(raw), round_num, self_prior)
 
 

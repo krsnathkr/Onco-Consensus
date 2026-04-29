@@ -93,6 +93,14 @@ def test_orchestrator_passes_previous_round_to_next():
     assert calls[1][0].round == 0
 
 
+def _mock_openai_client(response_text: str) -> MagicMock:
+    mock_completion = MagicMock()
+    mock_completion.choices[0].message.content = response_text
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.return_value = mock_completion
+    return mock_client
+
+
 def test_meta_synthesizer_returns_consensus_report():
     transcript = DebateTranscript(
         case_id="TEST-001",
@@ -106,16 +114,11 @@ def test_meta_synthesizer_returns_consensus_report():
         ]],
         ground_truth="Malignant",
     )
-    mock_response = MagicMock()
-    mock_response.text = (
+    synth = MetaSynthesizer(client=_mock_openai_client(
         '{"final_diagnosis": "Malignant", "confidence_score": 0.87, '
         '"rationale": "2 of 3 agents agree on malignancy.", '
         '"dissent_notes": "OllamaAgent disagreed, citing benign features."}'
-    )
-    mock_model = MagicMock()
-    mock_model.generate_content.return_value = mock_response
-
-    synth = MetaSynthesizer(model=mock_model)
+    ))
     report = synth.synthesize(transcript)
 
     assert isinstance(report, ConsensusReport)
@@ -135,15 +138,10 @@ def test_meta_synthesizer_correct_flag_false_when_wrong():
         ]],
         ground_truth="Malignant",
     )
-    mock_response = MagicMock()
-    mock_response.text = (
+    synth = MetaSynthesizer(client=_mock_openai_client(
         '{"final_diagnosis": "Benign", "confidence_score": 0.8, '
         '"rationale": "Agents agree benign.", "dissent_notes": null}'
-    )
-    mock_model = MagicMock()
-    mock_model.generate_content.return_value = mock_response
-
-    synth = MetaSynthesizer(model=mock_model)
+    ))
     report = synth.synthesize(transcript)
 
     assert report.correct is False

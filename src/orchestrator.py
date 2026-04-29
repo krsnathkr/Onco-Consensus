@@ -2,7 +2,7 @@ import json
 import os
 import re
 
-from src.agents import DiagnosticAgent
+from src.agents import DiagnosticAgent, _openrouter_client, _chat
 from src.models import ConsensusReport, DebateTranscript, DiagnosisOutput, PathologyCase
 
 SYNTHESIZER_SYSTEM = (
@@ -37,12 +37,9 @@ class DebateOrchestrator:
 
 
 class MetaSynthesizer:
-    def __init__(self, model=None):
-        if model is None:
-            import google.generativeai as genai
-            genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-            model = genai.GenerativeModel("gemini-2.0-flash")
-        self.model = model
+    def __init__(self, client=None):
+        self.client = client or _openrouter_client()
+        self.model_id = os.environ.get("GEMINI_MODEL", "google/gemini-flash-1.5")
 
     def synthesize(self, transcript: DebateTranscript) -> ConsensusReport:
         debate_text = f"Case ID: {transcript.case_id}\n\n"
@@ -55,12 +52,16 @@ class MetaSynthesizer:
                     f"  Reasoning: {op.reasoning}\n\n"
                 )
 
-        full_prompt = f"{SYNTHESIZER_SYSTEM}\n\n{debate_text}{SYNTHESIZER_JSON_HINT}"
-        response = self.model.generate_content(full_prompt)
+        raw = _chat(
+            self.client,
+            self.model_id,
+            SYNTHESIZER_SYSTEM,
+            debate_text + SYNTHESIZER_JSON_HINT,
+        )
 
-        match = re.search(r"\{.*\}", response.text, re.DOTALL)
+        match = re.search(r"\{.*\}", raw, re.DOTALL)
         if not match:
-            raise ValueError(f"No JSON in synthesizer response: {response.text[:300]}")
+            raise ValueError(f"No JSON in synthesizer response: {raw[:300]}")
         data = json.loads(match.group())
 
         final_dx = data["final_diagnosis"]
